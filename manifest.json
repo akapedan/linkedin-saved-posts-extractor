@@ -1,0 +1,21 @@
+{
+    "manifest_version": 3,
+    "name": "LinkedIn Saved Posts Extractor",
+    "version": "1.0",
+    "description": "Extract your saved posts from LinkedIn.",
+    "permissions": ["activeTab", "scripting", "downloads"],
+    "host_permissions": ["https://www.linkedin.com/*"],
+    "action": {
+      "default_popup": "popup.html",
+      "default_icon": {
+        "48": "icons/optimized_new_logo.png"
+      }
+    },
+    "icons": {
+      "48": "icons/optimized_new_logo.png"
+    },
+    "background": {
+      "service_worker": "background.js"
+    }
+  }
+  
