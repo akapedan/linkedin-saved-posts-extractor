@@ -41,6 +41,29 @@ function extractPosts(testMode = false) {
         }
       }
       
+      // Extract author profile image URLs
+      let authorImageUrl = "";
+      
+      // Look for profile image within the post container
+      const profileImageElement = container.querySelector("img.entity-result__embedded-object-image, img.ivm-view-attr__img--centered");
+      if (profileImageElement && profileImageElement.src) {
+        authorImageUrl = profileImageElement.src;
+        console.log("Found author image URL:", authorImageUrl);
+      }
+      
+      // Extract post-related image (if available)
+      let postImageUrl = "";
+      
+      // Look for post images with the specific structure provided
+      const postImageContainer = container.querySelector("div.ivm-image-view-model.relative");
+      if (postImageContainer) {
+        const postImageElement = postImageContainer.querySelector("img.ivm-view-attr__img--centered");
+        if (postImageElement && postImageElement.src) {
+          postImageUrl = postImageElement.src;
+          console.log("Found post image URL:", postImageUrl);
+        }
+      }
+      
       // Extract post content - preserve the HTML initially to handle <br> tags
       let content = "";
       let title = "";
@@ -161,10 +184,12 @@ function extractPosts(testMode = false) {
         link: link,
         author: author,
         content: content,
-        title: title
+        title: title,
+        authorImageUrl: authorImageUrl,
+        postImageUrl: postImageUrl
       });
       
-      console.log(`New post added. Author: ${author}. Title: ${title.substring(0, 30)}... Total posts: ${postData.length}`);
+      console.log(`New post added. Author: ${author}. Title: ${title.substring(0, 30)}... Author Image: ${authorImageUrl ? "Yes" : "No"}. Post Image: ${postImageUrl ? "Yes" : "No"}. Total posts: ${postData.length}`);
     } catch (e) {
       console.error("Error processing container:", e);
     }
