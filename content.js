@@ -106,17 +106,53 @@ function extractPosts(testMode = false) {
           
           // Find the first sentence
           const sentenceEnd = fullContent.search(/[.!?](\s|$)/);
-          title = sentenceEnd !== -1 ? 
-            fullContent.substring(0, sentenceEnd + 1).trim() : 
-            fullContent.split(' ').slice(0, 10).join(' ') + '...'; // First 10 words if no sentence end found
+          
+          if (sentenceEnd !== -1) {
+            // We found a proper sentence ending
+            title = fullContent.substring(0, sentenceEnd + 1).trim();
             
-          // Remove the title from the content
-          if (sentenceEnd !== -1 && content.startsWith(title)) {
-            content = content.substring(title.length).trim();
-            
-            // Remove any leading periods and spaces again after title extraction
-            content = content.replace(/^[\s\.]+/, "");
+            // Remove the title from the content
+            if (content.startsWith(title)) {
+              content = content.substring(title.length).trim();
+              
+              // Remove any leading periods and spaces again after title extraction
+              content = content.replace(/^[\s\.]+/, "");
+            }
+          } else {
+            // No proper sentence ending found
+            // Check if content is short enough to just use as title
+            if (fullContent.split(' ').length <= 15) {
+              title = fullContent;
+              content = ""; // No content if title is the entire text
+            } else {
+              // Use first 10 words as title, but without adding "..."
+              title = fullContent.split(' ').slice(0, 10).join(' ');
+              
+              // Make sure title ends with proper punctuation
+              if (!title.match(/[.!?]$/)) {
+                title += ".";
+              }
+              
+              // Remove the title portion from content
+              if (content.startsWith(title)) {
+                content = content.substring(title.length).trim();
+                content = content.replace(/^[\s\.]+/, "");
+              }
+            }
           }
+        }
+        
+        // Final check to prevent duplicate content
+        if (content && title && content.trim() === title.trim()) {
+          // If content and title are identical, clear the content
+          content = "";
+        }
+        
+        // Another check to prevent near-duplicate content
+        if (content && title && title.endsWith("...") && content.startsWith(title.substring(0, title.length - 3))) {
+          // If title ends with "..." and content starts with the title (minus the "..."), adjust the content
+          content = content.substring(title.length - 3).trim();
+          content = content.replace(/^[\s\.]+/, "");
         }
       }
       
