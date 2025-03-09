@@ -43,6 +43,8 @@ function extractPosts(testMode = false) {
       
       // Extract post content - preserve the HTML initially to handle <br> tags
       let content = "";
+      let title = "";
+      let rawContent = "";
       const contentElement = container.querySelector("p[class*='entity-result--no-ellipsis']");
       if (contentElement) {
         // Get the innerHTML to preserve <br> tags
@@ -52,34 +54,81 @@ function extractPosts(testMode = false) {
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = contentHtml;
         
+        // Extract the title - get the text before the first <br> tag
+        const htmlContent = contentElement.innerHTML;
+        const brIndex = htmlContent.indexOf('<br>');
+        
+        if (brIndex !== -1) {
+          // Create a temporary element to extract text content before the first <br>
+          const titleTempDiv = document.createElement('div');
+          titleTempDiv.innerHTML = htmlContent.substring(0, brIndex);
+          title = titleTempDiv.textContent.trim();
+          
+          // Create content without the title part
+          const contentTempDiv = document.createElement('div');
+          contentTempDiv.innerHTML = htmlContent.substring(brIndex);
+          rawContent = contentTempDiv.innerHTML;
+        } else {
+          rawContent = contentHtml;
+        }
+        
+        // Process the content (without title if we extracted it)
+        const contentTempDiv = document.createElement('div');
+        contentTempDiv.innerHTML = rawContent;
+        
         // Replace <br><br> with a special marker
-        const html = tempDiv.innerHTML.replace(/<br><br>/g, "###PARAGRAPH###");
+        const html = contentTempDiv.innerHTML.replace(/<br><br>/g, "###PARAGRAPH###");
         
         // Replace individual <br> with a different marker
         const html2 = html.replace(/<br>/g, "###LINEBREAK###");
         
         // Set the modified HTML back to get the text content
-        tempDiv.innerHTML = html2;
+        contentTempDiv.innerHTML = html2;
         
         // Get the text content with our markers
-        content = tempDiv.textContent;
+        content = contentTempDiv.textContent;
         
         // Replace markers with proper spacing
         content = content.replace(/###PARAGRAPH###/g, ". ");
         content = content.replace(/###LINEBREAK###/g, ". ");
+        
+        // Clean up the content text
+        content = cleanupContent(content);
+        
+        // If the content starts with periods or whitespace (which can happen after <br> extraction),
+        // remove them regardless of which extraction method was used
+        content = content.replace(/^[\s\.]+/, "");
+        
+        // If title wasn't extracted from HTML structure, extract from first sentence of full content
+        if (!title) {
+          // Get the full content first
+          const fullContent = cleanupContent(tempDiv.textContent);
+          
+          // Find the first sentence
+          const sentenceEnd = fullContent.search(/[.!?](\s|$)/);
+          title = sentenceEnd !== -1 ? 
+            fullContent.substring(0, sentenceEnd + 1).trim() : 
+            fullContent.split(' ').slice(0, 10).join(' ') + '...'; // First 10 words if no sentence end found
+            
+          // Remove the title from the content
+          if (sentenceEnd !== -1 && content.startsWith(title)) {
+            content = content.substring(title.length).trim();
+            
+            // Remove any leading periods and spaces again after title extraction
+            content = content.replace(/^[\s\.]+/, "");
+          }
+        }
       }
-      
-      // Clean up the content text
-      content = cleanupContent(content);
       
       // Add the post data
       postData.push({ 
         link: link,
         author: author,
-        content: content
+        content: content,
+        title: title
       });
       
-      console.log(`New post added. Author: ${author}. Total posts: ${postData.length}`);
+      console.log(`New post added. Author: ${author}. Title: ${title.substring(0, 30)}... Total posts: ${postData.length}`);
     } catch (e) {
       console.error("Error processing container:", e);
     }
@@ -94,14 +143,17 @@ function extractPosts(testMode = false) {
 }
 
 // Function to clean up the content text
-function cleanupContent(text) {
+function cleanupContent(text, isContentAfterTitle = false) {
   if (!text) return "";
   
-  // Remove the "…see more" at the end
-  let cleaned = text.replace(/…see more$/g, "").trim();
+  // Remove the "…see more" and "...see more" at the end and anywhere in the text
+  let cleaned = text.replace(/…see more/g, "").trim();
+  cleaned = cleaned.replace(/\.\.\.see more/g, "").trim();
   
-  // Add space after periods that don't have a space
-  cleaned = cleaned.replace(/\.([A-Z𝗖𝗿𝗮𝘄𝗹𝟰𝗔𝗜])/g, ". $1");
+  // Add space after periods that don't have a space (only if not content after title)
+  if (!isContentAfterTitle) {
+    cleaned = cleaned.replace(/\.([A-Z𝗖𝗿𝗮𝘄𝗹𝟰𝗔𝗜])/g, ". $1");
+  }
   
   // Clean up any double spaces or double periods
   cleaned = cleaned.replace(/\s{2,}/g, " ");
@@ -109,6 +161,11 @@ function cleanupContent(text) {
   
   // Clean up any period-space-period patterns
   cleaned = cleaned.replace(/\. \./g, ".");
+  
+  // If this is content after the title has been removed, clean up any leading periods
+  if (isContentAfterTitle) {
+    cleaned = cleaned.replace(/^\.+\s*/, "");
+  }
   
   return cleaned.trim();
 }
