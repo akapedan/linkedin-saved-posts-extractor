@@ -17,15 +17,32 @@ function extractPosts(testMode = false) {
   
   containersToProcess.forEach(container => {
     try {
-      // First find the link for the post
-      const linkElement = container.querySelector("a[data-test-app-aware-link]");
-      if (!linkElement) return;
+      // First find the author profile link
+      const authorProfileElement = container.querySelector("a[data-test-app-aware-link]");
+      if (!authorProfileElement) return;
       
-      const link = linkElement.href;
+      const authorProfileUrl = authorProfileElement.href;
       
-      // Check if we already have this link
-      const existingPostIndex = postData.findIndex(post => post.link === link);
+      // Check if we already have this profile link
+      const existingPostIndex = postData.findIndex(post => post.authorProfileUrl === authorProfileUrl);
       if (existingPostIndex !== -1) return;
+      
+      // Extract the post URL - check in multiple possible locations
+      let postUrl = "";
+      
+      // First attempt: Look for the embedded object link (original approach)
+      const postLinkElement = container.querySelector("a.entity-result__content-embedded-object");
+      if (postLinkElement) {
+        postUrl = postLinkElement.href;
+      }
+      
+      // Second attempt: Look for the alternative link format with image inside
+      if (!postUrl) {
+        const altPostLinkElement = container.querySelector("a.CkxUBVZenYcRwKJEjEVtZebhlSfMWr:not([class*='entity-result__content-embedded-object'])");
+        if (altPostLinkElement && altPostLinkElement.querySelector(".ivm-image-view-model")) {
+          postUrl = altPostLinkElement.href;
+        }
+      }
       
       // Extract author information using only the second approach which works consistently
       let author = "";
@@ -34,7 +51,7 @@ function extractPosts(testMode = false) {
       const hiddenSpans = container.querySelectorAll('span[aria-hidden="true"]');
       for (const span of hiddenSpans) {
         const spanText = span.innerText.trim();
-        if (spanText && spanText !== "...see more" && !spanText.includes("machine") && !link.includes(spanText)) {
+        if (spanText && spanText !== "...see more" && !spanText.includes("machine") && !authorProfileUrl.includes(spanText)) {
           author = spanText;
           console.log("Author from hidden span:", author);
           break;
@@ -179,9 +196,10 @@ function extractPosts(testMode = false) {
         }
       }
       
-      // Add the post data
+      // Add the post data with renamed key and new postUrl field
       postData.push({ 
-        link: link,
+        authorProfileUrl: authorProfileUrl, // Renamed from 'link' to be more descriptive
+        postUrl: postUrl,                   // New field for the actual post URL
         author: author,
         content: content,
         title: title,
